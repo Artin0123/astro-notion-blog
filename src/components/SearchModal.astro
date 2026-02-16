@@ -244,7 +244,7 @@
         description.textContent = item.description ?? ''
         a.href = item.link ?? '#'
 
-        li.addEventListener('mouseover', handleMouseover as EventListener)
+        li.addEventListener('mouseover', handleMouseover)
 
         a.appendChild(title)
         a.appendChild(description)

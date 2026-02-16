@@ -1,8 +1,8 @@
 import fs, { createWriteStream } from 'node:fs'
+import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import axios from 'axios'
+import pRetry, { AbortError } from 'p-retry'
 import sharp from 'sharp'
-import retry from 'async-retry'
 import ExifTransformer from 'exif-be-gone'
 import {
   NOTION_API_SECRET,
@@ -10,7 +10,6 @@ import {
   NUMBER_OF_POSTS_PER_PAGE,
   REQUEST_TIMEOUT_MS,
 } from '../../server-constants'
-import type { AxiosResponse } from 'axios'
 import type * as responses from './responses'
 import type * as requestParams from './request-params'
 import type {
@@ -53,7 +52,6 @@ import type {
   Mention,
   Reference,
 } from '../interfaces'
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 import { Client, APIResponseError } from '@notionhq/client'
 
 const client = new Client({
@@ -64,6 +62,19 @@ let postsCache: Post[] | null = null
 let dbCache: Database | null = null
 
 const numberOfRetry = 2
+
+async function withNotionRetry<T>(fn: () => Promise<T>): Promise<T> {
+  return pRetry(fn, {
+    retries: numberOfRetry,
+    shouldRetry: (err) => {
+      if (err instanceof AbortError) return false
+      if (err instanceof APIResponseError && err.status && err.status >= 400 && err.status < 500) {
+        return false
+      }
+      return true
+    },
+  })
+}
 
 export async function getAllPosts(): Promise<Post[]> {
   if (postsCache !== null) {
@@ -99,25 +110,11 @@ export async function getAllPosts(): Promise<Post[]> {
 
   let results: responses.PageObject[] = []
   while (true) {
-    const res = await retry(
-      async (bail) => {
-        try {
-          return (await client.databases.query(
-            params as any // eslint-disable-line @typescript-eslint/no-explicit-any
-          )) as responses.QueryDatabaseResponse
-        } catch (error: unknown) {
-          if (error instanceof APIResponseError) {
-            if (error.status && error.status >= 400 && error.status < 500) {
-              bail(error)
-            }
-          }
-          throw error
-        }
-      },
-      {
-        retries: numberOfRetry,
-      }
-    )
+    const res = (await withNotionRetry(() =>
+      client.databases.query(
+        params as any // eslint-disable-line @typescript-eslint/no-explicit-any
+      )
+    )) as responses.QueryDatabaseResponse
 
     results = results.concat(res.results)
 
@@ -240,25 +237,11 @@ export async function getAllBlocksByBlockId(blockId: string): Promise<Block[]> {
     }
 
     while (true) {
-      const res = await retry(
-        async (bail) => {
-          try {
-            return (await client.blocks.children.list(
-              params as any // eslint-disable-line @typescript-eslint/no-explicit-any
-            )) as responses.RetrieveBlockChildrenResponse
-          } catch (error: unknown) {
-            if (error instanceof APIResponseError) {
-              if (error.status && error.status >= 400 && error.status < 500) {
-                bail(error)
-              }
-            }
-            throw error
-          }
-        },
-        {
-          retries: numberOfRetry,
-        }
-      )
+      const res = (await withNotionRetry(() =>
+        client.blocks.children.list(
+          params as any // eslint-disable-line @typescript-eslint/no-explicit-any
+        )
+      )) as responses.RetrieveBlockChildrenResponse
 
       results = results.concat(res.results)
 
@@ -336,25 +319,11 @@ export async function getBlock(blockId: string): Promise<Block> {
     block_id: blockId,
   }
 
-  const res = await retry(
-    async (bail) => {
-      try {
-        return (await client.blocks.retrieve(
-          params as any // eslint-disable-line @typescript-eslint/no-explicit-any
-        )) as responses.RetrieveBlockResponse
-      } catch (error: unknown) {
-        if (error instanceof APIResponseError) {
-          if (error.status && error.status >= 400 && error.status < 500) {
-            bail(error)
-          }
-        }
-        throw error
-      }
-    },
-    {
-      retries: numberOfRetry,
-    }
-  )
+  const res = (await withNotionRetry(() =>
+    client.blocks.retrieve(
+      params as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    )
+  )) as responses.RetrieveBlockResponse
 
   return _buildBlock(res)
 }
@@ -378,21 +347,19 @@ export async function getAllTags(): Promise<SelectProperty[]> {
 }
 
 export async function downloadFile(url: URL) {
-  let res!: AxiosResponse
+  let res: Response
   try {
-    res = await axios({
-      method: 'get',
-      url: url.toString(),
-      timeout: REQUEST_TIMEOUT_MS,
-      responseType: 'stream',
-    })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+    res = await fetch(url.toString(), { signal: controller.signal })
+    clearTimeout(timeout)
   } catch (err) {
     console.log(err)
     return Promise.resolve()
   }
 
-  if (!res || res.status != 200) {
-    console.log(res)
+  if (!res.ok || !res.body) {
+    if (!res.ok) console.log(res.status, res.statusText)
     return Promise.resolve()
   }
 
@@ -407,10 +374,13 @@ export async function downloadFile(url: URL) {
   const writeStream = createWriteStream(filepath)
   const rotate = sharp().rotate()
 
-  let stream = res.data
+  const contentType = res.headers.get('content-type') || ''
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nodeStream = Readable.fromWeb(res.body as any)
+  let stream: NodeJS.ReadableStream = nodeStream
 
-  if (res.headers['content-type'] === 'image/jpeg') {
-    stream = stream.pipe(rotate)
+  if (contentType === 'image/jpeg') {
+    stream = nodeStream.pipe(rotate)
   }
   try {
     return pipeline(stream, new ExifTransformer(), writeStream)
@@ -443,25 +413,11 @@ export async function getDatabase(): Promise<Database> {
     database_id: DATABASE_ID,
   }
 
-  const res = await retry(
-    async (bail) => {
-      try {
-        return (await client.databases.retrieve(
-          params as any // eslint-disable-line @typescript-eslint/no-explicit-any
-        )) as responses.RetrieveDatabaseResponse
-      } catch (error: unknown) {
-        if (error instanceof APIResponseError) {
-          if (error.status && error.status >= 400 && error.status < 500) {
-            bail(error)
-          }
-        }
-        throw error
-      }
-    },
-    {
-      retries: numberOfRetry,
-    }
-  )
+  const res = (await withNotionRetry(() =>
+    client.databases.retrieve(
+      params as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    )
+  )) as responses.RetrieveDatabaseResponse
 
   let icon: FileObject | Emoji | null = null
   if (res.icon) {
@@ -760,12 +716,13 @@ function _buildBlock(blockObject: responses.BlockObject): Block {
         block.Table = table
       }
       break
-    case 'column_list':
+    case 'column_list': {
       const columnList: ColumnList = {
         Columns: [],
       }
       block.ColumnList = columnList
       break
+    }
     case 'table_of_contents':
       if (blockObject.table_of_contents) {
         const tableOfContents: TableOfContents = {
@@ -799,25 +756,11 @@ async function _getTableRows(blockId: string): Promise<TableRow[]> {
     }
 
     while (true) {
-      const res = await retry(
-        async (bail) => {
-          try {
-            return (await client.blocks.children.list(
-              params as any // eslint-disable-line @typescript-eslint/no-explicit-any
-            )) as responses.RetrieveBlockChildrenResponse
-          } catch (error: unknown) {
-            if (error instanceof APIResponseError) {
-              if (error.status && error.status >= 400 && error.status < 500) {
-                bail(error)
-              }
-            }
-            throw error
-          }
-        },
-        {
-          retries: numberOfRetry,
-        }
-      )
+      const res = (await withNotionRetry(() =>
+        client.blocks.children.list(
+          params as any // eslint-disable-line @typescript-eslint/no-explicit-any
+        )
+      )) as responses.RetrieveBlockChildrenResponse
 
       results = results.concat(res.results)
 
@@ -864,25 +807,11 @@ async function _getColumns(blockId: string): Promise<Column[]> {
     }
 
     while (true) {
-      const res = await retry(
-        async (bail) => {
-          try {
-            return (await client.blocks.children.list(
-              params as any // eslint-disable-line @typescript-eslint/no-explicit-any
-            )) as responses.RetrieveBlockChildrenResponse
-          } catch (error: unknown) {
-            if (error instanceof APIResponseError) {
-              if (error.status && error.status >= 400 && error.status < 500) {
-                bail(error)
-              }
-            }
-            throw error
-          }
-        },
-        {
-          retries: numberOfRetry,
-        }
-      )
+      const res = (await withNotionRetry(() =>
+        client.blocks.children.list(
+          params as any // eslint-disable-line @typescript-eslint/no-explicit-any
+        )
+      )) as responses.RetrieveBlockChildrenResponse
 
       results = results.concat(res.results)
 

@@ -53,14 +53,11 @@ const blocks = rawBlocks.reduce(
     return arr.concat(block)
   }
 
-  let listType = ''
-  if (isBulletedListItem) {
-    listType = 'bulleted_list'
-  } else if (isNumberedListItem) {
-    listType = 'numbered_list'
-  } else {
-    listType = 'to_do_list'
-  }
+  const listType = isBulletedListItem
+    ? 'bulleted_list'
+    : isNumberedListItem
+      ? 'numbered_list'
+      : 'to_do_list'
 
   if (i === 0) {
     const list: interfaces.List = {
