@@ -11,20 +11,23 @@ export interface Props {
 }
 
 const { block, headings } = Astro.props
+const paragraph = block.Paragraph
 ---
 
-<p class={snakeToKebab(block.Paragraph.Color)}>
+{paragraph && (
+<p class={snakeToKebab(paragraph.Color)}>
   {
-    block.Paragraph.RichTexts.map((richText: interfaces.RichText) => (
+    paragraph.RichTexts.map((richText: interfaces.RichText) => (
       <RichText richText={richText} />
     ))
   }
   {
-    block.Paragraph.Children && (
-      <NotionBlocks blocks={block.Paragraph.Children} headings={headings} />
+    paragraph.Children && (
+      <NotionBlocks blocks={paragraph.Children} headings={headings} />
     )
   }
 </p>
+)}
 
 <style>
   p {

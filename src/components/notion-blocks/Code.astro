@@ -21,15 +21,16 @@ export interface Props {
 }
 
 const { block } = Astro.props
-
-const code = block.Code.RichTexts.map(
-  (richText: interfaces.RichText) => richText.Text.Content
-).join('')
-const language = block.Code.Language.toLowerCase()
+const codeBlock = block.Code
+const code = codeBlock?.RichTexts.map(
+  (richText: interfaces.RichText) => richText.Text?.Content ?? ''
+).join('') ?? ''
+const language = (codeBlock?.Language ?? 'plaintext').toLowerCase()
 const grammer =
   Prism.languages[language.toLowerCase()] || Prism.languages.javascript
 ---
 
+{codeBlock && (
 <div class="code">
   <div>
     {
@@ -48,8 +49,9 @@ const grammer =
       )
     }
   </div>
-  <Caption richTexts={block.Code.Caption} />
+  <Caption richTexts={codeBlock.Caption} />
 </div>
+)}
 
 <script>
   import mermaid from 'mermaid'
@@ -58,16 +60,17 @@ const grammer =
 
 <script>
   document.querySelectorAll('button.copy').forEach((button) => {
-    button.addEventListener('click', (ev) => {
+    button.addEventListener('click', (ev: Event) => {
+      const target = ev.target as HTMLButtonElement
+      if (!target) return
+      const code = target.getAttribute('data-code') ?? ''
       navigator.clipboard
-        .writeText(ev.target.getAttribute('data-code'))
+        .writeText(code)
         .then(() => {
-          const originalText = ev.target.innerText
-
-          ev.target.innerText = ev.target.getAttribute('data-done-text')
-
+          const originalText = target.innerText
+          target.innerText = target.getAttribute('data-done-text') ?? 'Copied!'
           setTimeout(() => {
-            ev.target.innerText = originalText
+            target.innerText = originalText
           }, 3000)
         })
     })

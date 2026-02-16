@@ -9,12 +9,13 @@ export interface Props {
 }
 
 const { block } = Astro.props
+const imageBlock = block.Image
 
 let image = ''
-if (block.Image.External) {
-  image = block.Image.External.Url
-} else if (block.Image.File) {
-  image = filePath(new URL(block.Image.File.Url))
+if (imageBlock?.External) {
+  image = imageBlock.External.Url
+} else if (imageBlock?.File?.Url) {
+  image = filePath(new URL(imageBlock.File.Url))
 }
 ---
 
@@ -31,7 +32,7 @@ if (block.Image.External) {
             <img src={image} alt="Image in a image block" loading="lazy" />
           )}
         </div>
-        <Caption richTexts={block.Image.Caption} />
+        <Caption richTexts={imageBlock?.Caption ?? []} />
       </div>
     )
   }

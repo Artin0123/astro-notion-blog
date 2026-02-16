@@ -6,7 +6,7 @@ import NotionBlocks from '../NotionBlocks.astro'
 import '../../styles/notion-color.css'
 
 export interface Props {
-  block: interfaces.Block
+  block: interfaces.List
   headings: interfaces.Block[]
 }
 
@@ -17,10 +17,10 @@ const { block, headings } = Astro.props
   {
     block.ListItems.filter((b: interfaces.Block) => b.Type === 'to_do').map(
       (b: interfaces.Block) => (
-        <div class={snakeToKebab(b.ToDo.Color)}>
-          <input type="checkbox" checked={b.ToDo.Checked} disabled />
-          {b.ToDo.RichTexts.map((richText: interfaces.RichText) => {
-            if (b.ToDo.Checked) {
+        <div class={snakeToKebab(b.ToDo?.Color ?? '')}>
+          <input type="checkbox" checked={b.ToDo?.Checked} disabled />
+          {b.ToDo?.RichTexts.map((richText: interfaces.RichText) => {
+            if (b.ToDo?.Checked) {
               return (
                 <s>
                   <RichText richText={richText} />
@@ -29,7 +29,7 @@ const { block, headings } = Astro.props
             }
             return <RichText richText={richText} />
           })}
-          {b.HasChildren && (
+          {b.HasChildren && b.ToDo?.Children && (
             <NotionBlocks blocks={b.ToDo.Children} headings={headings} />
           )}
         </div>

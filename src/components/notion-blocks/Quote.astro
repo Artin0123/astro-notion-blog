@@ -11,20 +11,23 @@ export interface Props {
 }
 
 const { block, headings } = Astro.props
+const quote = block.Quote
 ---
 
-<blockquote class={snakeToKebab(block.Quote.Color)}>
+{quote && (
+<blockquote class={snakeToKebab(quote.Color)}>
   {
-    block.Quote.RichTexts.map((richText: interfaces.RichText) => (
+    quote.RichTexts.map((richText: interfaces.RichText) => (
       <RichText richText={richText} />
     ))
   }
   {
-    block.Quote.Children && (
-      <NotionBlocks blocks={block.Quote.Children} headings={headings} />
+    quote.Children && (
+      <NotionBlocks blocks={quote.Children} headings={headings} />
     )
   }
 </blockquote>
+)}
 
 <style>
   blockquote {

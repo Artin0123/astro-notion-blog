@@ -1,5 +1,5 @@
 ---
-import { Post } from '../../lib/interfaces.ts'
+import type { Post } from '../../lib/interfaces.ts'
 import { getPostByPageId } from '../../lib/notion/client'
 import { getPostLink } from '../../lib/blog-helpers.ts'
 import '../../styles/notion-color.css'
@@ -11,7 +11,7 @@ export interface Props {
 
 const { pageId } = Astro.props
 
-let post: Post = null
+let post: Post | null = null
 if (pageId) {
   post = await getPostByPageId(pageId)
 }

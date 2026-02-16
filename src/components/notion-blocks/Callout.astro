@@ -10,33 +10,36 @@ export interface Props {
 }
 
 const { block, headings } = Astro.props
+const callout = block.Callout
 ---
 
-<div class={`callout ${snakeToKebab(block.Callout.Color)}`}>
+{callout && (
+<div class={`callout ${snakeToKebab(callout.Color)}`}>
   {
-    block.Callout.Icon && (
+    callout.Icon && (
       <div class="icon">
-        {block.Callout.Icon.Type === 'emoji' ? (
-          block.Callout.Icon.Emoji
-        ) : block.Callout.Icon.Type === 'external' ? (
-          <img src={block.Callout.Icon.Url} alt="Icon in a callout block" />
+        {callout.Icon.Type === 'emoji' ? (
+          callout.Icon.Emoji
+        ) : callout.Icon.Type === 'external' ? (
+          <img src={callout.Icon.Url} alt="Icon in a callout block" />
         ) : null}
       </div>
     )
   }
   <div>
     {
-      block.Callout.RichTexts.map((richText: interfaces.RichText) => (
+      callout.RichTexts.map((richText: interfaces.RichText) => (
         <RichText richText={richText} />
       ))
     }
     {
-      block.Callout.Children && (
-        <NotionBlocks blocks={block.Callout.Children} headings={headings} />
+      callout.Children && (
+        <NotionBlocks blocks={callout.Children} headings={headings} />
       )
     }
   </div>
 </div>
+)}
 
 <style>
   .callout {

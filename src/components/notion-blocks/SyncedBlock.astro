@@ -8,6 +8,9 @@ export interface Props {
 }
 
 const { block, headings } = Astro.props
+const children = block.SyncedBlock?.Children
 ---
 
-<NotionBlocks blocks={block.SyncedBlock.Children} headings={headings} />
+{children && children.length > 0 && (
+<NotionBlocks blocks={children} headings={headings} />
+)}

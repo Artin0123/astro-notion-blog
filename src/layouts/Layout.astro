@@ -8,10 +8,10 @@ import SearchModal from '../components/SearchModal.astro'
 import SearchButton from '../components/SearchButton.astro'
 
 export interface Props {
-  title: string
-  description: string
-  path: string
-  ogImage: string
+  title?: string
+  description?: string
+  path?: string
+  ogImage?: string
 }
 
 const { title = '', description = '', path = '/', ogImage = '' } = Astro.props
@@ -26,7 +26,7 @@ const siteOGImage = new URL(
   Astro.site
 )
 
-let coverImageURL: string
+let coverImageURL: string | undefined
 if (database.Cover) {
   if (database.Cover.Type === 'external') {
     coverImageURL = database.Cover.Url
@@ -39,7 +39,7 @@ if (database.Cover) {
   }
 }
 
-let customIconURL: string
+let customIconURL: string | undefined
 if (database.Icon && database.Icon.Type === 'file') {
   try {
     customIconURL = filePath(new URL(database.Icon.Url))
@@ -105,7 +105,7 @@ if (database.Icon && database.Icon.Type === 'file') {
                         <img src={database.Icon.Url} alt="Site icon image" />
                         {database.Title}
                       </>
-                    ) : database.Icon && database.Icon.Type === 'file' ? (
+                    ) : database.Icon && database.Icon.Type === 'file' && customIconURL ? (
                       <>
                         <img
                           src={customIconURL}

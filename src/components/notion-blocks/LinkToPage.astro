@@ -10,5 +10,5 @@ const { block } = Astro.props
 ---
 
 <p>
-  <Mention pageId={block.LinkToPage.PageId} />
+  {block.LinkToPage?.PageId && <Mention pageId={block.LinkToPage.PageId} />}
 </p>

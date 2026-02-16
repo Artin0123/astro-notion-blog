@@ -8,15 +8,19 @@ export interface Props {
 }
 
 const { block } = Astro.props
+const fileBlock = block.File
 
-let url: URL
+let url: URL | null = null
 try {
-  url = new URL(block.File?.External?.Url || block.File?.File?.Url)
+  const urlStr = fileBlock?.External?.Url || fileBlock?.File?.Url
+  if (urlStr) {
+    url = new URL(urlStr)
+  }
 } catch (err) {
   console.error(`Invalid file URL. error: ${err}`)
 }
 
-const filename = decodeURIComponent(url.pathname.split('/').slice(-1)[0])
+const filename = url ? decodeURIComponent(url.pathname.split('/').slice(-1)[0]) : ''
 ---
 
 <div class="file">
@@ -24,7 +28,7 @@ const filename = decodeURIComponent(url.pathname.split('/').slice(-1)[0])
     {
       url && (
         <a
-          href={block.File.External ? url.String() : filePath(url)}
+          href={fileBlock?.External ? url?.toString() ?? '#' : (url ? filePath(url) : '#')}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -37,7 +41,7 @@ const filename = decodeURIComponent(url.pathname.split('/').slice(-1)[0])
       )
     }
   </div>
-  <Caption richTexts={block.File.Caption} />
+  <Caption richTexts={fileBlock?.Caption ?? []} />
 </div>
 
 <style>

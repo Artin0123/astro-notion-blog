@@ -426,6 +426,19 @@ export async function getDatabase(): Promise<Database> {
     return Promise.resolve(dbCache)
   }
 
+  if (!DATABASE_ID) {
+    throw new Error(
+      'DATABASE_ID 未設定或為空。請在 .env 填入正確的 Notion 資料庫 ID（32 字元，從資料庫網址取得，不含 ?v= 之後的內容）。詳見 docs/Notion設定說明.md'
+    )
+  }
+
+  const validIdLength = DATABASE_ID.replace(/-/g, '').length === 32
+  if (!validIdLength) {
+    throw new Error(
+      `DATABASE_ID 格式錯誤：應為 32 字元（可含連字號）。目前長度：${DATABASE_ID.replace(/-/g, '').length}。請檢查 .env 的 DATABASE_ID。`
+    )
+  }
+
   const params: requestParams.RetrieveDatabase = {
     database_id: DATABASE_ID,
   }
@@ -454,17 +467,17 @@ export async function getDatabase(): Promise<Database> {
   if (res.icon) {
     if (res.icon.type === 'emoji' && 'emoji' in res.icon) {
       icon = {
-        Type: res.icon.type,
+        Type: 'emoji',
         Emoji: res.icon.emoji,
       }
     } else if (res.icon.type === 'external' && 'external' in res.icon) {
       icon = {
-        Type: res.icon.type,
+        Type: 'external',
         Url: res.icon.external?.url || '',
       }
     } else if (res.icon.type === 'file' && 'file' in res.icon) {
       icon = {
-        Type: res.icon.type,
+        Type: 'file',
         Url: res.icon.file?.url || '',
       }
     }
@@ -473,7 +486,7 @@ export async function getDatabase(): Promise<Database> {
   let cover: FileObject | null = null
   if (res.cover) {
     cover = {
-      Type: res.cover.type,
+      Type: res.cover.type as 'external' | 'file',
       Url: res.cover.external?.url || res.cover?.file?.url || '',
     }
   }
@@ -661,7 +674,7 @@ function _buildBlock(blockObject: responses.BlockObject): Block {
             'emoji' in blockObject.callout.icon
           ) {
             icon = {
-              Type: blockObject.callout.icon.type,
+              Type: 'emoji',
               Emoji: blockObject.callout.icon.emoji,
             }
           } else if (
@@ -669,7 +682,7 @@ function _buildBlock(blockObject: responses.BlockObject): Block {
             'external' in blockObject.callout.icon
           ) {
             icon = {
-              Type: blockObject.callout.icon.type,
+              Type: 'external',
               Url: blockObject.callout.icon.external?.url || '',
             }
           }
@@ -934,7 +947,7 @@ function _buildPost(pageObject: responses.PageObject): Post {
   if (pageObject.icon) {
     if (pageObject.icon.type === 'emoji' && 'emoji' in pageObject.icon) {
       icon = {
-        Type: pageObject.icon.type,
+        Type: 'emoji',
         Emoji: pageObject.icon.emoji,
       }
     } else if (
@@ -942,7 +955,7 @@ function _buildPost(pageObject: responses.PageObject): Post {
       'external' in pageObject.icon
     ) {
       icon = {
-        Type: pageObject.icon.type,
+        Type: 'external',
         Url: pageObject.icon.external?.url || '',
       }
     }
@@ -951,23 +964,24 @@ function _buildPost(pageObject: responses.PageObject): Post {
   let cover: FileObject | null = null
   if (pageObject.cover) {
     cover = {
-      Type: pageObject.cover.type,
-      Url: pageObject.cover.external?.url || '',
+      Type: pageObject.cover.type as 'external' | 'file',
+      Url: pageObject.cover.external?.url || pageObject.cover?.file?.url || '',
     }
   }
 
   let featuredImage: FileObject | null = null
   if (prop.FeaturedImage.files && prop.FeaturedImage.files.length > 0) {
-    if (prop.FeaturedImage.files[0].external) {
+    const file = prop.FeaturedImage.files[0]
+    if (file.external) {
       featuredImage = {
-        Type: prop.FeaturedImage.type,
-        Url: prop.FeaturedImage.files[0].external.url,
+        Type: 'external' as const,
+        Url: file.external.url,
       }
-    } else if (prop.FeaturedImage.files[0].file) {
+    } else if (file.file) {
       featuredImage = {
-        Type: prop.FeaturedImage.type,
-        Url: prop.FeaturedImage.files[0].file.url,
-        ExpiryTime: prop.FeaturedImage.files[0].file.expiry_time,
+        Type: 'file' as const,
+        Url: file.file.url,
+        ExpiryTime: file.file.expiry_time,
       }
     }
   }

@@ -1,4 +1,4 @@
-English | [日本語](README.ja.md)
+English | [日本語](README.ja.md) | [繁體中文（專案架構說明）](docs/專案架構說明.md)
 
 # astro-notion-blog
 
@@ -79,18 +79,21 @@ Please note that the astro-notion-blog requires manual deployment every time you
 
 ### Steps
 
-1. To set your secrets as environment variables, run the following commands in your terminal:
+1. Copy `.env.example` to `.env` and fill in `NOTION_API_SECRET` and `DATABASE_ID`.  
+   Or set them as environment variables in your terminal:
 
 ```sh
 export NOTION_API_SECRET=<YOUR_NOTION_API_SECRET>
 export DATABASE_ID=<YOUR_DATABASE_ID>
 ```
 
+   See [docs/Notion設定說明.md](docs/Notion設定說明.md) for detailed Notion setup (Traditional Chinese).
+
 2. Install dependencies and start local server
 
 ```sh
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 3. Open [http://localhost:4321](http://localhost:4321) in your browser

@@ -1,7 +1,31 @@
 export const NOTION_API_SECRET =
   import.meta.env.NOTION_API_SECRET || process.env.NOTION_API_SECRET || ''
-export const DATABASE_ID =
+
+/**
+ * 從環境變數取得並正規化 DATABASE_ID。
+ * 處理常見錯誤：含 ?v=、整串網址、前後空白。
+ */
+function normalizeDatabaseId(raw: string): string {
+  let id = raw.trim()
+  if (!id) return ''
+  // 若貼了完整網址，取出最後一段 path（問號前）
+  if (id.includes('notion.so') || id.includes('notion.com')) {
+    try {
+      const url = new URL(id.startsWith('http') ? id : `https://${id}`)
+      const pathSegments = url.pathname.split('/').filter(Boolean)
+      id = pathSegments[pathSegments.length - 1] || ''
+    } catch {
+      // 解析失敗則用原始值
+    }
+  }
+  // 移除 ?v=xxx 及之後的內容
+  if (id.includes('?')) id = id.split('?')[0] ?? ''
+  return id.trim()
+}
+
+const rawDatabaseId =
   import.meta.env.DATABASE_ID || process.env.DATABASE_ID || ''
+export const DATABASE_ID = normalizeDatabaseId(rawDatabaseId)
 
 export const CUSTOM_DOMAIN =
   import.meta.env.CUSTOM_DOMAIN || process.env.CUSTOM_DOMAIN || '' // <- Set your costom domain if you have. e.g. alpacat.com
