@@ -1,3 +1,7 @@
+/**
+ * pre-build 腳本：提前拉取 Notion 文章區塊內容並存入本地快取 (tmp/)。
+ * 這麼做可以避免在 astro build 期間發送大量且密集的 API 請求而觸發 Notion 速率限制 (Rate limit)。
+ */
 const { exec } = require('child_process');
 const { Client } = require('@notionhq/client');
 const cliProgress = require('cli-progress');
@@ -6,6 +10,7 @@ const { PromisePool } = require('@supercharge/promise-pool');
 const notion = new Client({ auth: process.env.NOTION_API_SECRET });
 
 const getAllPages = async () => {
+  // 篩選出標記為 Published 且發布時間在目前的文章
   const params = {
     database_id: process.env.DATABASE_ID,
     filter: {

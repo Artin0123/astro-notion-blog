@@ -1,4 +1,8 @@
 ---
+/**
+ * NotionBlocks 元件：負責分發與渲染 Notion 回傳的各類型內容區塊 (Blocks)。
+ * 它透過迴圈檢查每個 Block 的 Type，再將其傳入對應的子元件 (如 Paragraph.astro、Image.astro 等) 進行渲染。
+ */
 import * as interfaces from '../lib/interfaces.ts'
 import {
   isTweetURL,
@@ -36,6 +40,7 @@ export interface Props {
   headings?: interfaces.Block[]
 }
 
+// 接收外部傳入的 blocks 陣列以及層級參數
 const {
   blocks: rawBlocks,
   isRoot = false,
@@ -43,6 +48,7 @@ const {
   headings: rawHeadings = [],
 } = Astro.props
 
+// 把連續的條列項目 (bulleted_list_item, numbered_list_item, to_do) 群組成 list 類型
 const blocks = rawBlocks.reduce(
   (arr: (interfaces.Block | interfaces.List)[], block: interfaces.Block, i: number) => {
   const isBulletedListItem = block.Type === 'bulleted_list_item'
@@ -95,6 +101,7 @@ const blocks = rawBlocks.reduce(
   [] as (interfaces.Block | interfaces.List)[]
 )
 
+// 過濾出所有標題 (Heading)，用來給目錄 (TableOfContents) 產生錨點
 let headings = rawHeadings
 if (isRoot) {
   headings = blocks.filter(
