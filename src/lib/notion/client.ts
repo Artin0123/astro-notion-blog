@@ -1,3 +1,8 @@
+/**
+ * Notion API Client
+ * 此檔案負責與 Notion 官方 API 互動，取得資料庫資訊、文章列表 (Pages) 及內容區塊 (Blocks)。
+ * 包含快取與自動重試機制，減少建置時的 Notion API 呼叫次數及避免速率限制問題。
+ */
 import fs, { createWriteStream } from 'node:fs'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
@@ -63,6 +68,7 @@ let dbCache: Database | null = null
 
 const numberOfRetry = 2
 
+// 定義一個自動重試包裹函式，當 Notion API 回傳 5xx 錯誤或網路問題時進行重試
 async function withNotionRetry<T>(fn: () => Promise<T>): Promise<T> {
   return pRetry(fn, {
     retries: numberOfRetry,
@@ -76,7 +82,12 @@ async function withNotionRetry<T>(fn: () => Promise<T>): Promise<T> {
   })
 }
 
+/**
+ * 獲取所有狀態為 Published，且發布日期小於等於現在時間的文章列表。
+ * @returns Post[] 陣列
+ */
 export async function getAllPosts(): Promise<Post[]> {
+  // 如果已經快取過了，直接回傳
   if (postsCache !== null) {
     return Promise.resolve(postsCache)
   }
@@ -226,9 +237,15 @@ export async function getNumberOfPagesByTag(tagName: string): Promise<number> {
   )
 }
 
+/**
+ * 透過 blockId 遞迴抓取內容區塊 (Blocks)。
+ * 如果存在本地快取 json 檔 (通常是由 pre-build 的 retrieve-block-children.cjs 產生)，
+ * 則優先讀取本地快取。
+ */
 export async function getAllBlocksByBlockId(blockId: string): Promise<Block[]> {
   let results: responses.BlockObject[] = []
 
+  // 讀取本地 tmp/ 快取 (如果有的話)
   if (fs.existsSync(`tmp/${blockId}.json`)) {
     results = JSON.parse(fs.readFileSync(`tmp/${blockId}.json`, 'utf-8'))
   } else {
@@ -346,6 +363,10 @@ export async function getAllTags(): Promise<SelectProperty[]> {
     )
 }
 
+/**
+ * 下載來自 Notion (AWS S3) 的檔案 (如圖片)，存放於 public/notion/ 目錄下。
+ * 使用 ExifTransformer 與 sharp 處理圖片旋轉問題。
+ */
 export async function downloadFile(url: URL) {
   let res: Response
   try {

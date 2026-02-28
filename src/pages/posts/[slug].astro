@@ -1,4 +1,9 @@
 ---
+/**
+ * 動態路由：單一文章頁面
+ * 負責根據文章的 slug 來渲染該篇內容，同時下載對應的圖片及附加檔案。
+ * 在 Astro 中，中括號 `[slug].astro` 代表動態路由。
+ */
 import * as interfaces from '../../lib/interfaces.ts'
 import {
   getPosts,
@@ -26,18 +31,24 @@ import BlogPostsLink from '../../components/BlogPostsLink.astro'
 import BlogTagsLink from '../../components/BlogTagsLink.astro'
 import styles from '../../styles/blog.module.css'
 
+/**
+ * getStaticPaths 在靜態生成階段 (SSG) 會告訴 Astro 哪些 slug 需要預先編譯成靜態 HTML。
+ */
 export async function getStaticPaths() {
   const posts = await getAllPosts()
   return posts.map((post: interfaces.Post) => ({ params: { slug: post.Slug } }))
 }
 
+// 取得目前的路由參數
 const { slug } = Astro.params
 
+// 根據 slug 抓取文章 metadata
 const post = await getPostBySlug(slug)
 if (!post) {
   throw new Error(`Post not found. slug: ${slug}`)
 }
 
+// 同時獲取該篇文章的所有內容區塊 (Blocks)，以及供側邊欄或底部使用的相關推薦文章
 const [blocks, allPosts, rankedPosts, recentPosts, tags, postsHavingSameTag] =
   await Promise.all([
     getAllBlocksByBlockId(post.PageId),
@@ -48,6 +59,7 @@ const [blocks, allPosts, rankedPosts, recentPosts, tags, postsHavingSameTag] =
     getPostsByTag(post.Tags[0]?.name, 6),
   ])
 
+// 過濾出包含檔案的區塊 (圖片或一般檔案)，以備後續下載
 const fileAtacchedBlocks = extractTargetBlocks('image', blocks)
   .concat(extractTargetBlocks('file', blocks))
   .filter((block) => {
@@ -58,7 +70,7 @@ const fileAtacchedBlocks = extractTargetBlocks('image', blocks)
     return imageOrFile && imageOrFile.File && imageOrFile.File.Url
   })
 
-// Download files
+// 開始下載文章中包含的所有遠端檔案，確保在離線狀態下也能讀取或縮短圖片載入時間
 await Promise.all(
   fileAtacchedBlocks
     .map(async (block) => {

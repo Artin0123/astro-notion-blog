@@ -1,4 +1,9 @@
 ---
+/**
+ * 部落格首頁 (Index Page)
+ * 負責渲染部落格的首頁，包含文章列表、分頁導覽、以及側邊欄的分類與推薦文章。
+ * 在建置階段 (build time) 會預先拉取所需資料。
+ */
 import { NUMBER_OF_POSTS_PER_PAGE } from '../server-constants.ts'
 import {
   getPosts,
@@ -19,8 +24,9 @@ import BlogPostsLink from '../components/BlogPostsLink.astro'
 import BlogTagsLink from '../components/BlogTagsLink.astro'
 import styles from '../styles/blog.module.css'
 
+// 並行發送多個 Notion API 請求以獲取首頁所需資料
 const [posts, rankedPosts, tags, numberOfPages] = await Promise.all([
-  getPosts(NUMBER_OF_POSTS_PER_PAGE),
+  getPosts(NUMBER_OF_POSTS_PER_PAGE), // 獲取最新文章
   getRankedPosts(),
   getAllTags(),
   getNumberOfPages(),
