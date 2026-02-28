@@ -32,7 +32,10 @@ if (database.Cover) {
     coverImageURL = database.Cover.Url
   } else if (database.Cover.Type === 'file') {
     try {
-      coverImageURL = filePath(new URL(database.Cover.Url))
+      const localPath = filePath(new URL(database.Cover.Url))
+      import.meta.env.DEV
+        ? (coverImageURL = database.Cover.Url)
+        : (coverImageURL = localPath)
     } catch {
       console.log('Invalid DB cover image URL: ', database.Cover?.Url)
     }
@@ -42,15 +45,17 @@ if (database.Cover) {
 let customIconURL: string | undefined
 if (database.Icon && database.Icon.Type === 'file') {
   try {
-    customIconURL = filePath(new URL(database.Icon.Url))
+    import.meta.env.DEV
+      ? (customIconURL = database.Icon.Url)
+      : (customIconURL = filePath(new URL(database.Icon.Url)))
   } catch {
     console.log('Invalid DB custom icon URL: ', database.Icon?.Url)
   }
 }
 ---
 
-<!DOCTYPE html>
-<html lang="en" prefix="og: https://ogp.me/ns#">
+<!doctype html>
+<html lang="en" data-theme="dark" prefix="og: https://ogp.me/ns#">
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="max-image-preview:large" />
@@ -68,326 +73,584 @@ if (database.Icon && database.Icon.Type === 'file') {
     <meta name="twitter:description" content={siteDescription} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content={ogImage || siteOGImage} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css"
       integrity="sha384-vKruj+a13U8yHIkAyGgK1J3ArTLzrFGBbBc0tDp4ad/EyewESeXE/Iv67Aj8gKZ0"
       crossorigin="anonymous"
     />
+    <!-- 防止主題閃爍：在 CSS 載入前就設定 data-theme -->
+    <script is:inline>
+      ;(function () {
+        var saved = localStorage.getItem('theme') || 'dark'
+        document.documentElement.setAttribute('data-theme', saved)
+      })()
+    </script>
   </head>
+
   <body>
     <GoogleAnalytics trackingId={PUBLIC_GA_TRACKING_ID} />
-    <div class="container">
-      <header>
-        {
-          coverImageURL && (
-            <div class="cover">
-              <img src={coverImageURL} alt="Site cover image" loading="lazy" />
-            </div>
-          )
-        }
-      </header>
 
-      <div>
-        <main>
-          <div class="content">
-            <header>
-              <h1>
-                <a href={getNavLink('/')}>
-                  {
-                    database.Icon && database.Icon.Type === 'emoji' ? (
-                      <>
-                        <span>{database.Icon.Emoji}</span>
-                        {database.Title}
-                      </>
-                    ) : database.Icon && database.Icon.Type === 'external' ? (
-                      <>
-                        <img src={database.Icon.Url} alt="Site icon image" />
-                        {database.Title}
-                      </>
-                    ) : database.Icon && database.Icon.Type === 'file' && customIconURL ? (
-                      <>
-                        <img
-                          src={customIconURL}
-                          class="custom-icon"
-                          alt="Site icon image"
-                        />
-                        {database.Title}
-                      </>
-                    ) : (
-                      database.Title
-                    )
-                  }
-                </a>
-              </h1>
-              <div class="description">
-                {database.Description}
-              </div>
-            </header>
+    <!-- 固定漸層背景 -->
+    <div class="bg-layer" aria-hidden="true"></div>
 
-            <slot name="main" />
+    <!-- 玻璃導覽列 -->
+    <nav class="glass-nav">
+      <div class="nav-inner">
+        <a href={getNavLink('/')} class="nav-brand">
+          {
+            database.Icon && database.Icon.Type === 'emoji' ? (
+              <span class="brand-icon">{database.Icon.Emoji}</span>
+            ) : database.Icon && database.Icon.Type === 'external' ? (
+              <img
+                src={database.Icon.Url}
+                class="brand-icon-img"
+                alt="site icon"
+              />
+            ) : database.Icon &&
+              database.Icon.Type === 'file' &&
+              customIconURL ? (
+              <img
+                src={customIconURL}
+                class="brand-icon-img brand-icon-custom"
+                alt="site icon"
+              />
+            ) : null
+          }
+          <span class="brand-title">{database.Title}</span>
+        </a>
 
-            <footer>
-              <div>
-                <span>Powered by&nbsp;</span>
-                <a href="https://github.com/otoyo/astro-notion-blog"
-                  >astro-notion-blog</a
-                >
-              </div>
-            </footer>
-          </div>
-        </main>
-
-        <aside>
+        <div class="nav-actions">
           <SearchButton />
-          <slot name="aside" />
-        </aside>
+          <button
+            id="theme-toggle"
+            aria-label="切換深淺色主題"
+            title="切換主題"
+          >
+            <!-- 太陽（淺色模式下顯示、點擊切換回深色） -->
+            <svg
+              class="icon-sun"
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <!-- 月亮（深色模式下顯示、點擊切換回淺色） -->
+            <svg
+              class="icon-moon"
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+        </div>
       </div>
+    </nav>
+
+    <!-- Hero 區塊 -->
+    <section
+      class="hero"
+      style={coverImageURL ? `--hero-img: url('${coverImageURL}')` : ''}
+    >
+      <div class="hero-bg"></div>
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p class="hero-desc">{database.Description}</p>
+      </div>
+    </section>
+
+    <!-- 主體佈局 -->
+    <div class="page-wrap">
+      <main class="page-main">
+        <slot name="main" />
+      </main>
+
+      <aside class="page-sidebar glass-panel">
+        <slot name="aside" />
+      </aside>
     </div>
 
+    <!-- 頁腳 -->
+    <footer class="site-footer">
+      <span>Powered by&nbsp;</span>
+      <a href="https://github.com/otoyo/astro-notion-blog">astro-notion-blog</a>
+    </footer>
+
     <SearchModal />
+
     {
       ENABLE_LIGHTBOX && (
         <script src={getStaticFilePath('/scripts/fslightbox.js')} />
       )
     }
+
+    <!-- 主題切換邏輯 -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('theme-toggle')
+        btn?.addEventListener('click', () => {
+          const curr = document.documentElement.getAttribute('data-theme')
+          const next = curr === 'dark' ? 'light' : 'dark'
+          document.documentElement.setAttribute('data-theme', next)
+          localStorage.setItem('theme', next)
+        })
+      })
+    </script>
   </body>
 </html>
 
 <style>
-  .container {
-    min-height: 100vh;
+  /* ── 導覽列 ─────────────────────────────────── */
+  .glass-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    width: 100%;
+    background: var(--nav-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 1px 24px rgba(0, 0, 0, 0.15);
   }
 
-  .container > div {
-    display: flex;
+  .nav-inner {
     max-width: 1280px;
-  }
-  @media (max-width: 640px) {
-    .container > div {
-      display: block;
-    }
-  }
-
-  main {
-    flex: 1;
-    order: 2;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    height: 60px;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
   }
-  @media (max-width: 640px) {
-    main {
-      order: 1;
-    }
-  }
 
-  aside {
-    order: 1;
-    width: 300px;
-    padding: 20px 20px;
-    background-color: #f4f4f4;
-  }
-  @media (max-width: 640px) {
-    aside {
-      order: 2;
-      width: 100%;
-    }
-  }
-
-  div.cover {
-  }
-  div.cover img {
-    display: block;
-    width: 100%;
-    height: 20vh;
-    object-fit: cover;
-    object-position: center 60%;
-  }
-
-  div.content {
-    padding: 20px 40px;
-  }
-  @media (max-width: 640px) {
-    div.content {
-      padding: 0 18px;
-    }
-  }
-
-  main header {
-    padding: 20px 0 20px;
-  }
-  main header h1 {
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: var(--fg);
     font-weight: 700;
-    color: #333;
+    font-size: 1.1rem;
+    transition: opacity 0.2s;
   }
-  main header h1 a {
+  .nav-brand:hover {
+    opacity: 0.8;
+  }
+
+  .brand-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+  .brand-icon-img {
+    width: 1.6rem;
+    height: 1.6rem;
+    object-fit: contain;
+  }
+  .brand-icon-custom {
+    border-radius: 4px;
+  }
+  .brand-title {
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  #theme-toggle {
+    background: none;
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    transition:
+      background 0.2s,
+      border-color 0.2s;
+  }
+  #theme-toggle:hover {
+    background: var(--glass-bg);
+    border-color: var(--accent);
+  }
+
+  /* 深色模式顯示月亮，淺色模式顯示太陽 */
+  :global([data-theme='dark']) .icon-sun {
+    display: none;
+  }
+  :global([data-theme='dark']) .icon-moon {
     display: block;
-    color: inherit;
   }
-  main header h1 a:hover {
-    color: inherit;
+  :global([data-theme='light']) .icon-sun {
+    display: block;
   }
-  main header h1 a span,
-  main header h1 a img {
-    display: inline-block;
-    font-size: 1.1em;
-  }
-  main header h1 a span {
-    margin-right: 0.3em;
-    margin-left: -0.1rem;
-  }
-  main header h1 a img {
-    width: 1.2em;
-    height: 1.2em;
-    margin-right: 0.2em;
-    margin-left: -0.3rem;
-    vertical-align: sub;
-  }
-  main header h1 a img.custom-icon {
-    border-radius: var(--radius);
+  :global([data-theme='light']) .icon-moon {
+    display: none;
   }
 
-  main header div.description {
-    padding: 0.3rem 0 0.6rem;
-    font-size: 0.95rem;
-  }
-
-  main footer {
-    margin: 30px 0 10px;
-    text-align: center;
-    font-size: 0.75rem;
+  /* ── Hero ───────────────────────────────────── */
+  .hero {
+    position: relative;
+    height: 280px;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
   }
   @media (max-width: 640px) {
-    main footer {
-      margin: 0 auto 30px;
+    .hero {
+      height: 180px;
     }
   }
-  main footer span {
-    color: #777;
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background-image: var(--hero-img, none);
+    background-size: cover;
+    background-position: center 40%;
+    transform: scale(1.05);
+    transition: transform 0.4s ease;
   }
-  main footer a {
-    color: inherit;
+  .hero:not([style]) .hero-bg {
+    background: var(--accent-gradient);
+    opacity: 0.3;
+  }
+
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.35) 60%,
+      rgba(0, 0, 0, 0.65) 100%
+    );
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    padding: 1.5rem 2rem;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .hero-desc {
+    margin: 0;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 400;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  /* ── 主體佈局 ────────────────────────────────── */
+  .page-wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+  @media (max-width: 900px) {
+    .page-wrap {
+      flex-direction: column;
+      padding: 1.25rem 1rem;
+    }
+  }
+
+  .page-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .page-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 76px;
+    border-radius: 16px;
+    padding: 1.25rem;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+  @media (max-width: 900px) {
+    .page-sidebar {
+      width: 100%;
+      position: static;
+    }
+  }
+
+  /* ── 頁腳 ────────────────────────────────────── */
+  .site-footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    font-size: 0.8rem;
+    color: var(--fg-muted);
+    border-top: 1px solid var(--glass-border);
+  }
+  .site-footer a {
+    color: var(--accent);
     text-decoration: underline;
+    text-underline-offset: 3px;
   }
 </style>
 
 <style is:global>
-  :root {
-    --gap-quarter: 0.25rem;
-    --gap-half: 0.5rem;
-    --gap: 1rem;
-    --gap-double: 2rem;
+  /* ════════════════════════════════════════════
+     CSS 設計系統 — 深色 / 淺色主題變數
+  ════════════════════════════════════════════ */
+  :root,
+  [data-theme='dark'] {
+    --bg: #09090f;
+    --fg: #e2e8f0;
+    --fg-muted: #94a3b8;
 
-    --bg: #fff;
-    --fg: #333;
-    --accents-1: #666;
-    --accents-2: #666;
-    --accents-3: #666;
-    --geist-foreground: #000;
-    --geist-success: #690;
+    --bg-gradient:
+      radial-gradient(
+        ellipse 80% 50% at 20% -10%,
+        rgba(120, 80, 255, 0.25),
+        transparent
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 80% 110%,
+        rgba(56, 189, 248, 0.15),
+        transparent
+      ),
+      #09090f;
 
-    --radius: 4px;
+    --nav-bg: rgba(9, 9, 15, 0.85);
+    --glass-bg: rgba(15, 20, 40, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.07);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 
-    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
-      'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
-      'Helvetica Neue', sans-serif;
-    --font-mono: SFMono-Regular, Menlo, Consolas, 'PT Mono', 'Liberation Mono',
-      Courier, monospace;
+    --card-bg: rgba(15, 23, 42, 0.75);
+    --card-border: rgba(255, 255, 255, 0.06);
+    --card-hover-border: rgba(129, 140, 248, 0.35);
+    --card-hover-shadow: 0 12px 40px rgba(129, 140, 248, 0.18);
+
+    --accent: #818cf8;
+    --accent-2: #38bdf8;
+    --accent-gradient: linear-gradient(135deg, #818cf8, #38bdf8);
+    --accent-muted: rgba(129, 140, 248, 0.2);
+
+    --tag-bg: rgba(129, 140, 248, 0.12);
+    --tag-color: #a5b4fc;
+    --tag-border: rgba(129, 140, 248, 0.25);
+
+    --code-bg: rgba(135, 131, 120, 0.12);
+    --code-color: #f472b6;
+
+    --radius: 14px;
+    --radius-sm: 8px;
+    --radius-tag: 6px;
   }
 
-  * {
+  [data-theme='light'] {
+    --bg: #f8faff;
+    --fg: #0f172a;
+    --fg-muted: #64748b;
+
+    --bg-gradient:
+      radial-gradient(
+        ellipse 80% 50% at 20% -10%,
+        rgba(139, 92, 246, 0.12),
+        transparent
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 80% 110%,
+        rgba(14, 165, 233, 0.1),
+        transparent
+      ),
+      #f4f6ff;
+
+    --nav-bg: rgba(248, 250, 255, 0.88);
+    --glass-bg: rgba(255, 255, 255, 0.78);
+    --glass-border: rgba(0, 0, 0, 0.06);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+
+    --card-bg: rgba(255, 255, 255, 0.82);
+    --card-border: rgba(0, 0, 0, 0.06);
+    --card-hover-border: rgba(99, 102, 241, 0.3);
+    --card-hover-shadow: 0 12px 40px rgba(99, 102, 241, 0.14);
+
+    --accent: #6366f1;
+    --accent-2: #0ea5e9;
+    --accent-gradient: linear-gradient(135deg, #6366f1, #0ea5e9);
+    --accent-muted: rgba(99, 102, 241, 0.12);
+
+    --tag-bg: rgba(99, 102, 241, 0.08);
+    --tag-color: #6366f1;
+    --tag-border: rgba(99, 102, 241, 0.2);
+
+    --code-bg: rgba(135, 131, 120, 0.1);
+    --code-color: #db2777;
+
+    --radius: 14px;
+    --radius-sm: 8px;
+    --radius-tag: 6px;
+  }
+
+  /* ── 基礎重置 ────────────────────────────────── */
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
     word-break: break-word;
   }
 
   html,
   body {
-    padding: 0;
     margin: 0;
+    padding: 0;
     font-size: 16px;
   }
 
   body {
     min-height: 100vh;
-    background: var(--bg);
     color: var(--fg);
-    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI',
-      Helvetica, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
-      'Hiragino Sans GB', メイリオ, Meiryo, 'Apple Color Emoji', Arial,
-      sans-serif, 'Segoe UI Emoji', 'Segoe UI Symbol';
-
-    /*background-image: radial-gradient(#ddd 1px, transparent 1px),
-      radial-gradient(#ddd 1px, transparent 1px);*/
-    background-position: 0 0, 25px 25px;
-    background-attachment: fixed;
-    background-size: 50px 50px;
-
-    /* Hack */
-    overflow-x: hidden;
-
+    font-family:
+      'Inter',
+      ui-sans-serif,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Helvetica,
+      'Hiragino Sans',
+      'Hiragino Kaku Gothic ProN',
+      メイリオ,
+      Meiryo,
+      Arial,
+      sans-serif;
     -webkit-font-smoothing: antialiased;
     -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+    position: relative;
   }
 
-  figure {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #999;
-    line-height: 1.8rem;
+  /* Fixed gradient background */
+  .bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--bg-gradient);
+    transition: background 0.4s ease;
   }
 
+  /* ── 連結 ─────────────────────────────────────── */
   a {
-    color: var(--accents-1);
+    color: var(--accent);
     text-decoration: none;
+    transition: opacity 0.2s;
   }
   a:hover {
-    color: var(--accents-1);
+    opacity: 0.8;
   }
 
-  mark {
-    padding: var(--gap-quarter);
-    border-radius: var(--radius);
-    background: rgba(247, 212, 255, 0.8);
-  }
-
+  /* ── 排版 ─────────────────────────────────────── */
   h1 {
     margin: 0;
     color: var(--fg);
     font-size: 2rem;
     font-weight: 700;
+    line-height: 1.3;
   }
-
   @media (max-width: 640px) {
     h1 {
       font-size: 1.6rem;
     }
   }
 
-  ol {
-    color: #222;
-    font-weight: 400;
-    font-size: 0.9rem;
-    line-height: 1.8rem;
-  }
   p,
-  ul {
-    color: #222;
+  ul,
+  ol {
+    color: var(--fg);
     font-weight: 400;
     font-size: 1rem;
     line-height: 1.8rem;
   }
+
+  ol {
+    font-size: 0.9rem;
+  }
+
   ul,
   ol {
     margin: 0;
     padding-inline-start: 1.5rem;
   }
+
+  figure {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--fg-muted);
+    line-height: 1.8rem;
+  }
+
+  mark {
+    padding: 0.1em 0.3em;
+    border-radius: var(--radius-sm);
+    background: rgba(247, 212, 255, 0.4);
+    color: var(--fg);
+  }
+
   pre {
     margin: 0;
     white-space: pre;
     tab-size: 2;
   }
-  pre :global(code) {
+  pre code {
     overflow: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  code {
+    font-size: 0.9rem;
+    background: var(--code-bg);
+    color: var(--code-color);
+    padding: 0.15em 0.4em;
+    border-radius: var(--radius-sm);
+    font-family:
+      SFMono-Regular, Menlo, Consolas, 'PT Mono', 'Liberation Mono', Courier,
+      monospace;
   }
 
   hr {
@@ -395,45 +658,65 @@ if (database.Icon && database.Icon.Type === 'file') {
     height: 1px;
     border: 0;
     margin: 0.3rem 0;
-    background-color: #333;
+    background-color: var(--glass-border);
   }
 
-  code {
-    font-size: 0.9rem;
-    background: rgba(135, 131, 120, 0.15);
-    color: #eb5757;
-    padding: 0.25rem;
-    border-radius: var(--radius);
-    font-family: var(--font-mono);
-  }
-
+  /* ── 表格 ─────────────────────────────────────── */
   table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
     border-collapse: collapse;
   }
-
   table tr {
     vertical-align: top;
   }
-
   table th {
     font-weight: 600;
-    background-color: #f4f4f4;
+    background-color: var(--accent-muted);
+    color: var(--fg);
   }
-
   table td,
   table th {
     font-size: 0.9rem;
-    border: 1px solid #e4e4e4;
+    border: 1px solid var(--glass-border);
     padding: 0.5rem 1rem;
     text-align: left;
     line-height: 1.2rem;
+    color: var(--fg);
   }
   table td::after {
     content: '';
     display: inline-block;
     min-height: 0.9rem;
+  }
+
+  /* ── Notion block 顏色深色模式適配 ─────────────── */
+  [data-theme='dark'] .notion-gray {
+    color: #9ba1a6 !important;
+  }
+  [data-theme='dark'] .notion-brown {
+    color: #b07c6a !important;
+  }
+  [data-theme='dark'] .notion-orange {
+    color: #d9814a !important;
+  }
+  [data-theme='dark'] .notion-yellow {
+    color: #d4aa5c !important;
+  }
+  [data-theme='dark'] .notion-green {
+    color: #4c9e6a !important;
+  }
+  [data-theme='dark'] .notion-blue {
+    color: #4a90d9 !important;
+  }
+  [data-theme='dark'] .notion-purple {
+    color: #9b72cf !important;
+  }
+  [data-theme='dark'] .notion-pink {
+    color: #d96a9b !important;
+  }
+  [data-theme='dark'] .notion-red {
+    color: #d95f5f !important;
   }
 </style>

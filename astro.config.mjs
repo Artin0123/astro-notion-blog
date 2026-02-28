@@ -34,6 +34,7 @@ const getSite = function () {
 
 // https://astro.build/config
 export default defineConfig({
+  output: 'static',
   site: getSite(),
   base: BASE_PATH,
   integrations: [

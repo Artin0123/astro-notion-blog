@@ -1,5 +1,32 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
+// Astro 的 integration hooks 在 Node.js 層執行，沒有 import.meta.env，
+// 手動讀取 .env 作為 fallback（不覆蓋已存在的 process.env 值）
+if (typeof import.meta.env === 'undefined' || !import.meta.env.DATABASE_ID) {
+  try {
+    const envPath = path.resolve(process.cwd(), '.env')
+    if (fs.existsSync(envPath)) {
+      const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/)
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) continue
+        const eqIdx = trimmed.indexOf('=')
+        if (eqIdx === -1) continue
+        const key = trimmed.slice(0, eqIdx).trim()
+        const value = trimmed.slice(eqIdx + 1).trim()
+        if (key && !process.env[key]) process.env[key] = value
+      }
+    }
+  } catch {
+    // 靜默失敗，不影響正常執行
+  }
+}
+
 export const NOTION_API_SECRET =
-  import.meta.env.NOTION_API_SECRET || process.env.NOTION_API_SECRET || ''
+  (typeof import.meta.env !== 'undefined' && import.meta.env.NOTION_API_SECRET) ||
+  process.env.NOTION_API_SECRET ||
+  ''
 
 /**
  * 從環境變數取得並正規化 DATABASE_ID。
@@ -24,7 +51,9 @@ function normalizeDatabaseId(raw: string): string {
 }
 
 const rawDatabaseId =
-  import.meta.env.DATABASE_ID || process.env.DATABASE_ID || ''
+  (typeof import.meta.env !== 'undefined' && import.meta.env.DATABASE_ID) ||
+  process.env.DATABASE_ID ||
+  ''
 export const DATABASE_ID = normalizeDatabaseId(rawDatabaseId)
 
 export const CUSTOM_DOMAIN =

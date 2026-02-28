@@ -419,6 +419,10 @@ export async function getDatabase(): Promise<Database> {
     )
   )) as responses.RetrieveDatabaseResponse
 
+  // databases.retrieve() 對 inline database 不回傳 cover（Notion API 限制）
+  // 優先使用環境變數 SITE_COVER_URL 作為封面來源
+  const rawCover = res.cover
+
   let icon: FileObject | Emoji | null = null
   if (res.icon) {
     if (res.icon.type === 'emoji' && 'emoji' in res.icon) {
@@ -439,11 +443,19 @@ export async function getDatabase(): Promise<Database> {
     }
   }
 
+  // 優先使用環境變數 SITE_COVER_URL，其次才用 API 回傳的 cover
+  const siteCoverUrl =
+    (typeof import.meta.env !== 'undefined' && import.meta.env.SITE_COVER_URL) ||
+    process.env.SITE_COVER_URL ||
+    ''
+
   let cover: FileObject | null = null
-  if (res.cover) {
+  if (siteCoverUrl) {
+    cover = { Type: 'external', Url: siteCoverUrl }
+  } else if (rawCover) {
     cover = {
-      Type: res.cover.type as 'external' | 'file',
-      Url: res.cover.external?.url || res.cover?.file?.url || '',
+      Type: rawCover.type as 'external' | 'file',
+      Url: rawCover.external?.url || rawCover?.file?.url || '',
     }
   }
 

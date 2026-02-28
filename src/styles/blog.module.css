@@ -1,22 +1,79 @@
+/* ── 文章列表主體 ──────────────────────────────────── */
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
 .main header {
-  padding: 0 0 20px;
+  padding: 0 0 1.25rem;
 }
+
 .main footer {
-  border-top: 1px dashed #888;
+  border-top: 1px solid var(--glass-border);
   margin: 0 auto;
-  padding: 40px 0 0;
+  padding: 2rem 0 0;
 }
+
 @media (max-width: 640px) {
   .main footer {
-    margin: 0 auto 40px;
+    margin: 0 auto 2rem;
   }
 }
 
+/* ── 文章卡片 ──────────────────────────────────────── */
 .post {
-  margin: 0 auto 40px;
+  background: var(--card-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+  transition:
+    transform 0.28s ease,
+    box-shadow 0.28s ease,
+    border-color 0.28s ease;
+  cursor: pointer;
 }
+
+.post:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--card-hover-shadow);
+  border-color: var(--card-hover-border);
+}
+
+.post-inner {
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
 .post footer {
-  margin-top: 0.5rem;
+  margin-top: 0;
   padding: 0;
   border: 0;
+}
+
+/* ── 文章頁面（單篇） ──────────────────────────────── */
+.post-body-wrap {
+  background: var(--card-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 2rem 2.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .post-body-wrap {
+    padding: 1.25rem 1rem;
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* ── 側邊欄元素 ─────────────────────────────────────── */
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
